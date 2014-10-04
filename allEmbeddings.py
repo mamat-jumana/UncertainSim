@@ -63,40 +63,49 @@ def generateAllEmbeddings(G1,G2):
 				embedding.append(edge)
 				embeddings.append(embedding)
 		print embeddings
-
 		return embeddings
-	#Returns (one of) the maximal set of independent embeddings of G1 in G2.
-	embeddings=[]
-	lineGraphG1=generateLabeledLineGraph(G1)
-	lineGraphG2=generateLabeledLineGraph(G2)
-	#print lineGraphG1.nodes()
-	setOfLineGraphs = [lineGraphG2]
-	while len(setOfLineGraphs) > 0:
-		lineGraphG2 = setOfLineGraphs[0]
-		setOfLineGraphs = setOfLineGraphs[1:]
-		iterations = 0
-		while True:
-			embedding = []
-			GM=isomorphism.GraphMatcher(lineGraphG2,lineGraphG1,node_match=nodeMatchWithVertexLabels,edge_match=em)	
-			isSubIso=GM.subgraph_is_isomorphic()
-			if not isSubIso:
-				break
-			edgeToEdgeMapping=GM.mapping
-			if iterations == 0:
+	else:
+		#Returns (one of) the maximal set of independent embeddings of G1 in G2.
+		embeddings=[]
+		lineGraphG1=generateLabeledLineGraph(G1)
+		lineGraphG2=generateLabeledLineGraph(G2)
+		#print lineGraphG1.nodes()
+		setOfLineGraphs = [lineGraphG2]
+		while len(setOfLineGraphs) > 0:
+			lineGraphG2 = setOfLineGraphs[0]
+			setOfLineGraphs = setOfLineGraphs[1:]
+			iterations = 0
+			while True:
+				embedding = []
+				GM=isomorphism.GraphMatcher(lineGraphG2,lineGraphG1,node_match=nodeMatchWithVertexLabels,edge_match=em)	
+				isSubIso=GM.subgraph_is_isomorphic()
+				if not isSubIso:
+					break
+				edgeToEdgeMapping=GM.mapping
+				if iterations == 0:
+					for key in edgeToEdgeMapping:
+						lineGraphG2_copy = lineGraphG2.copy()
+						lineGraphG2_copy.remove_node(key)
+						setOfLineGraphs.append(lineGraphG2_copy)
 				for key in edgeToEdgeMapping:
-					lineGraphG2_copy = lineGraphG2.copy()
-					lineGraphG2_copy.remove_node(key)
-					setOfLineGraphs.append(lineGraphG2_copy)
-			for key in edgeToEdgeMapping:
-				lineGraphG2.remove_node(key)
-				embedding.append(key)
-			if not sorted(embedding) in embeddings:
-				embeddings.append(sorted(embedding))			
-			iterations = iterations + 1
+					lineGraphG2.remove_node(key)
+					embedding.append(key)
+				if not sorted(embedding) in embeddings:
+					embeddings.append(sorted(embedding))			
+				iterations = iterations + 1
+		print embeddings
+		print 'Done'
+		return embeddings
 
-	print embeddings
-	print 'Done'
-
+def findUpperBoundFeature(feature,graph):
+	embeddings = generateAllEmbeddings(feature,graph)
+	product = 1.0
+	for embedding in embeddings:
+		probOfEmbedding = 1.0
+		for (i,j) in embedding:
+			probOfEmbedding = probOfEmbedding * graph.edge[i][j]['weight']
+		product = product * (1-probOfEmbedding)
+	return (1-product)
 
 G1=nx.Graph()
 G1.add_node(1,label="A")
