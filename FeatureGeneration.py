@@ -53,7 +53,7 @@ def checkSubGraphIsomorphismWithLabels(G1,G2):
 #labelList=["A","B","C"]
 labelList=[]
 COGFrequencyFile=open("COGFrequencies.txt")
-maxLim=2
+maxLim=10
 for index,line in enumerate(COGFrequencyFile):
 	words=line.split()
 	labelList.append(words[0])
@@ -109,5 +109,5 @@ def generatePLength(l):
 
 features=[]
 features=features+generateLabelledVariants(getK3(),labelList)
-#features+=generateLabelledVariants(generatePLength(3),labelList)
+features+=generateLabelledVariants(generatePLength(3),labelList)
 print len(features)

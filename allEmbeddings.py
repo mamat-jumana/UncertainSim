@@ -62,38 +62,41 @@ def generateAllEmbeddings(G1,G2):
 				embedding=[]
 				embedding.append(edge)
 				embeddings.append(embedding)
+		print embeddings
+
 		return embeddings
 	#Returns (one of) the maximal set of independent embeddings of G1 in G2.
 	embeddings=[]
 	lineGraphG1=generateLabeledLineGraph(G1)
 	lineGraphG2=generateLabeledLineGraph(G2)
 	#print lineGraphG1.nodes()
-	setOfLineGraphs = [(lineGraphG2,[])]
+	setOfLineGraphs = [lineGraphG2]
 	while len(setOfLineGraphs) > 0:
-		lineGraphG2 = setOfLineGraphs[0][0]
-		embedding = setOfLineGraphs[0][1]
+		lineGraphG2 = setOfLineGraphs[0]
 		setOfLineGraphs = setOfLineGraphs[1:]
-		GM=isomorphism.GraphMatcher(lineGraphG2,lineGraphG1,node_match=nodeMatchWithVertexLabels,edge_match=em)	
-		isSubIso=GM.subgraph_is_isomorphic()
-		if not isSubIso:
+		iterations = 0
+		while True:
+			embedding = []
+			GM=isomorphism.GraphMatcher(lineGraphG2,lineGraphG1,node_match=nodeMatchWithVertexLabels,edge_match=em)	
+			isSubIso=GM.subgraph_is_isomorphic()
+			if not isSubIso:
+				break
+			edgeToEdgeMapping=GM.mapping
+			if iterations == 0:
+				for key in edgeToEdgeMapping:
+					lineGraphG2_copy = lineGraphG2.copy()
+					lineGraphG2_copy.remove_node(key)
+					setOfLineGraphs.append(lineGraphG2_copy)
+			for key in edgeToEdgeMapping:
+				lineGraphG2.remove_node(key)
+				embedding.append(key)
 			if not sorted(embedding) in embeddings:
-				embeddings.append(sorted(embedding))
-			continue
-		edgeToEdgeMapping=GM.mapping
-		for key in edgeToEdgeMapping:
-			lineGraphG2_copy = lineGraphG2.copy()
-			lineGraphG2_copy.remove_node(key)
-			embedding_copy = list(embedding)
-			embedding_copy.append(key)
-			setOfLineGraphs.append((lineGraphG2_copy,embedding_copy))
-		if len(edgeToEdgeMapping.keys())==0:
-			if not sorted(embedding) in embeddings:
-				embeddings.append(sorted(embedding))
-			continue
+				embeddings.append(sorted(embedding))			
+			iterations = iterations + 1
 
 	print embeddings
-
 	print 'Done'
+
 
 G1=nx.Graph()
 G1.add_node(1,label="A")
@@ -226,13 +229,12 @@ G19.add_edge(2,3)
 G19.add_edge(3,4)
 G19.add_edge(4,1)
 
+generateAllEmbeddings(G16,G17)
 generateAllEmbeddings(G10,G11)
 generateAllEmbeddings(G14,G15)
 generateAllEmbeddings(G18,G19)
-print checkSubGraphIsomorphismWithLabels(G16,G17)
-generateAllEmbeddings(G16,G17)
 
-print nx.line_graph(G16).nodes()
+#print nx.line_graph(G16).nodes()
 print "20-21"
 G20=nx.Graph()
 G20.add_node(1,label="A")
@@ -246,9 +248,9 @@ G21.add_node(3,label="B")
 G21.add_edge(1,2)
 G21.add_edge(2,3)
 
-checkSubGraphIsomorphismWithLabels(G20,G21)
-print generateAllEmbeddings(G16,G17)
-print generateAllEmbeddings(G20,G21)
+#checkSubGraphIsomorphismWithLabels(G20,G21)
+generateAllEmbeddings(G16,G17)
+generateAllEmbeddings(G20,G21)
 
 G22=nx.Graph()
 G22.add_node(1,label="A")
