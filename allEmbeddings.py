@@ -271,5 +271,23 @@ G23.add_edge(5,6)
 G23.add_edge(5,7)
 G23.add_edge(6,7)
 
+G24=nx.Graph()
+G24.add_node(1,label="B")
+G24.add_node(2,label="B")
+G24.add_node(3,label="B")
+G24.add_node(4,label="B")
+G24.add_node(5,label="A")
+G24.add_edge(1,2)
+G24.add_edge(2,3)
+G24.add_edge(3,4)
+G24.add_edge(4,1)
+G24.add_edge(1,5)
+G24.add_edge(2,5)
+G24.add_edge(3,5)
+G24.add_edge(4,5)
+
 print "Varun's Test Case"
 generateAllEmbeddings(G22,G23)
+
+print "Weird Test Case 1"
+generateAllEmbeddings(G22,G24)
