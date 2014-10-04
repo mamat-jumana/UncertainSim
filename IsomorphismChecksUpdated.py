@@ -62,29 +62,41 @@ def generateIndependentEmbeddings(G1,G2):
 				embedding=[]
 				embedding.append(edge)
 				embeddings.append(embedding)
+		print embeddings
 		return embeddings
-	#Returns (one of) the maximal set of independent embeddings of G1 in G2.
-	embeddings=[]
-	lineGraphG1=generateLabeledLineGraph(G1)
-	lineGraphG2=generateLabeledLineGraph(G2)
-	print lineGraphG1.nodes()
-	iterations=0
-	while True:
-		GM=isomorphism.GraphMatcher(lineGraphG2,lineGraphG1,node_match=nodeMatchWithVertexLabels,edge_match=em)
-		isSubIso=GM.subgraph_is_isomorphic()
-		if not isSubIso:
-			break
-		edgeToEdgeMapping=GM.mapping
-		embedding=[]
-		for key in edgeToEdgeMapping:
-			lineGraphG2.remove_node(key)
-			embedding.append(key)
-		embeddings.append(embedding)
-		if len(edgeToEdgeMapping.keys())==0:
-			break
-		iterations+=1
+	else:
+		#Returns (one of) the maximal set of independent embeddings of G1 in G2.
+		embeddings=[]
+		lineGraphG1=generateLabeledLineGraph(G1)
+		lineGraphG2=generateLabeledLineGraph(G2)
+		print lineGraphG1.nodes()
+		iterations=0
+		while True:
+			GM=isomorphism.GraphMatcher(lineGraphG2,lineGraphG1,node_match=nodeMatchWithVertexLabels,edge_match=em)
+			isSubIso=GM.subgraph_is_isomorphic()
+			if not isSubIso:
+				break
+			edgeToEdgeMapping=GM.mapping
+			embedding=[]
+			for key in edgeToEdgeMapping:
+				lineGraphG2.remove_node(key)
+				embedding.append(key)
+			embeddings.append(embedding)
+			if len(edgeToEdgeMapping.keys())==0:
+				break
+			iterations+=1
+		print embeddings
+		return embeddings
 
-	print embeddings
+def findLowerBoundFeature(feature,graph):
+	embeddings = generateIndependentEmbeddings(feature,graph)
+	product = 1.0
+	for embedding in embeddings:
+		probOfEmbedding = 1.0
+		for (i,j) in embedding:
+			probOfEmbedding = probOfEmbedding * graph.edge[i][j]['weight']
+		product = product * (1-probOfEmbedding)
+	return (1-product)
 
 G1=nx.Graph()
 G1.add_node(1,label="A")
