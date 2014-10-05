@@ -299,10 +299,15 @@ def findTightestUSim(U,F,UpB):
 		minVal = 10000
 		minPos = -1
 		for i in range(0,len(S)):
-			Gamma[i] = float(UpperB[i])/len(S[i]-A)
+			if len(S[i]-A) == 0:
+				Gamma[i] = 100000
+			else:
+				Gamma[i] = float(UpperB[i])/len(S[i]-A)
 			if Gamma[i] < minVal:
 				minPos = i
 				minVal = Gamma[i]
+		if minPos == -1:
+			break
 		A.update(S[minPos])
 		S.pop(minPos)
 		Gamma.pop(minPos)
@@ -328,16 +333,22 @@ for graphFile in graphFiles:
 	probGraphs.append(newGraph)
 print 'Done'
 
+'''
 # feature generation
 print 'Generating features: ',
 features = []
-
 labelList=[]
+
+COGMappingsFile=open("COGMappings.txt")
+COGMapping = {}
+for line in COGMappingsFile:
+	COGMapping[line.split()[0]] = line.split()[1]
+
 COGFrequencyFile=open("COGFrequencies.txt")
 maxLim=6 # ------------------------------------------------------------------------------> parameter
 for index,line in enumerate(COGFrequencyFile):
 	words=line.split()
-	labelList.append(words[0])
+	labelList.append(COGMapping[words[0]])
 labelList=labelList[:maxLim]
 
 features = features+generateLabelledVariants(getK3(),labelList) # K3
@@ -365,6 +376,8 @@ for graph in probGraphs:
 		upperBoundsGraph.append(findUpperBoundFeature(feature,graph))
 	upperBoundsPMI[graph.graph['name']] = upperBoundsGraph
 
+'''
+
 # read query graph
 print 'Reading query graph: ',
 queryGraph = nx.Graph(name='query')
@@ -379,21 +392,24 @@ eps = float(epsilon)
 
 # check query graph against probabilistic graphs
 for graph in probGraphs:
-	print 'Checking for subgraph similarity against graph ',graph.graph['name'],' : ',
+	print 'Checking for subgraph similarity against graph ',graph.graph['name'],' : '
 	# Structural pruning
-#	if checkSubGraphIsomorphismWithLabels(queryGraph,graph) == False:
-	if 1==2:
+	if checkSubGraphIsomorphismWithLabels(queryGraph.copy(),graph.copy()) == False:
 		print 'Pruned using structural pruning'
 	else:
+		print 'Not structurally pruned'
+'''
+	else:
 		# Probabilistic pruning
-		lowerBoundSSP = findTightestLSim([queryGraph],features,upperBoundsPMI[graph.graph['name']],lowerBoundsPMI[graph.graph['name']])
-		print 'lower bound = ',lowerBoundSSP,
-		if lowerBoundSSP >= eps:
-			print 'Present in final answer set'
-			continue
 		upperBoundSSP = findTightestUSim([queryGraph],features,upperBoundsPMI[graph.graph['name']])
 		print 'upper bound = ',upperBoundSSP,
 		if upperBoundSSP < eps:
 			print 'Pruned using probabilistic pruning'
 			continue
+		lowerBoundSSP = findTightestLSim([queryGraph],features,upperBoundsPMI[graph.graph['name']],lowerBoundsPMI[graph.graph['name']])
+		print 'lower bound = ',lowerBoundSSP,
+		if lowerBoundSSP >= eps:
+			print 'Present in final answer set'
+			continue
 		print 'Have to verify'
+'''
