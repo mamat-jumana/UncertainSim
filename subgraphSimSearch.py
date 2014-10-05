@@ -4,8 +4,9 @@ from os import listdir
 from os.path import isfile, join
 from networkx.algorithms import isomorphism
 import networkx.algorithms.isomorphism as iso
+from sets import Set
 
-script, inputDirectory = argv
+script, inputDirectory, queryFile, epsilon = argv
 
 '''
 Functions supporting sub-modules
@@ -47,7 +48,6 @@ def checkSubGraphIsomorphismWithLabels(G1,G2):
 			edgeLabel=(G2.node[edge[0]]['label'],G2.node[edge[1]]['label'])
 			if not foundMatch:
 				foundMatch=checkTupleEquality(edgeLabel,loneEdgetuple)
-		print foundMatch
 		return foundMatch
 	#Returns true if G1 is a subGraph of G2
 	lineGraphG1=generateLabeledLineGraph(G1)
@@ -115,14 +115,12 @@ def generateIndependentEmbeddings(G1,G2):
 				embedding=[]
 				embedding.append(edge)
 				embeddings.append(embedding)
-		print embeddings
 		return embeddings
 	else:
 		#Returns (one of) the maximal set of independent embeddings of G1 in G2.
 		embeddings=[]
 		lineGraphG1=generateLabeledLineGraph(G1)
 		lineGraphG2=generateLabeledLineGraph(G2)
-		print lineGraphG1.nodes()
 		iterations=0
 		while True:
 			GM=isomorphism.GraphMatcher(lineGraphG2,lineGraphG1,node_match=nodeMatchWithVertexLabels,edge_match=em)
@@ -138,7 +136,6 @@ def generateIndependentEmbeddings(G1,G2):
 			if len(edgeToEdgeMapping.keys())==0:
 				break
 			iterations+=1
-		print embeddings
 		return embeddings
 
 def findLowerBoundFeature(feature,graph):
@@ -163,7 +160,6 @@ def generateAllEmbeddings(G1,G2):
 				embedding=[]
 				embedding.append(edge)
 				embeddings.append(embedding)
-		print embeddings
 		return embeddings
 	else:
 		#Returns (one of) the maximal set of independent embeddings of G1 in G2.
@@ -194,8 +190,6 @@ def generateAllEmbeddings(G1,G2):
 				if not sorted(embedding) in embeddings:
 					embeddings.append(sorted(embedding))			
 				iterations = iterations + 1
-		print embeddings
-		print 'Done'
 		return embeddings
 
 def findUpperBoundFeature(feature,graph):
@@ -208,6 +202,112 @@ def findUpperBoundFeature(feature,graph):
 		product = product * (1-probOfEmbedding)
 	return (1-product)
 
+def findTightestLSim(U,F,UpB,LoB):
+	'''
+	U: set of remaining query graphs 
+	F: set of feature graphs
+	UpB: for each feature, upper bound of SIP of feature-graph
+	LoB: for each feature, lower bound of SIP of feature-graph
+	'''
+	UpperB = list(UpB)
+	LowerB = list(LoB)
+	S = [] 	# S: for each feature, set of remaining query graphs which are sub-graphs
+	for f in range(0,len(F)):
+		s = Set([])
+		for rq in range(0,len(U)):
+			if checkSubGraphIsomorphismWithLabels(U[rq],F[f]):
+				s.add(rq+1)
+		S.append(s)
+
+	#print S
+
+	# QP
+	q = zeros((len(S),len(S)),dtype=float)
+	for i in range(0,len(S)):
+		for j in range(i+1,len(S)):
+			q[i][j] = 0.5 * UpperB[i] * UpperB[j]
+			q[j][i] = 0.5 * UpperB[i] * UpperB[j]
+	Q = 2*matrix(q)
+
+	p = zeros(len(S),dtype=float)
+	for i in range(0,len(S)):
+		p[i] = -1.0 * LowerB[i]
+	P = matrix(p)
+
+	h = -1.0*ones(len(U)+2*len(S),dtype=float)
+
+	g = zeros((len(U)+2*len(S),len(S)),dtype=float)
+	for i in range(0,len(U)):
+		for j in range(0,len(S)):
+			if i+1 in S[j]:
+				g[i][j] = -1.0
+	for i in range(0,len(S)):
+		g[len(U)+i][i] = -1.0
+		g[len(U)+len(S)+i][i] = 1.0
+		h[len(U)+i] = 0.0
+		h[len(U)+len(S)+i] = 1.0
+	G = matrix(g)
+
+	H = matrix(h)
+
+	#print Q
+	#print P
+	#print G
+	#print H
+
+	sol=solvers.qp(Q, P, G, H)
+
+	probOfS = sol['x']
+
+	LSim = 0
+	covered = []
+
+	for i in range(0,int(2*log(len(U)))):
+		for s in range(0,len(S)):
+			if random.random() <= probOfS[s]:
+				if not s in covered:
+					covered.append(s) 
+				currentSum = 0
+				for j in range(0,len(covered)):
+					currentSum = currentSum + UpperB[covered[j]]
+				LSim = LSim + LowerB[s] - UpperB[s]*currentSum
+
+	return LSim
+
+def findTightestUSim(U,F,UpB):
+	'''
+	U: set of remaining query graphs 
+	F: set of feature graphs
+	UpB: for each feature, upper bound of SIP of feature-graph
+	'''
+	UpperB = list(UpB)
+	S = [] 	# S: for each feature, set of remaining query graphs which are super-graphs
+	for f in range(0,len(F)):
+		s = Set([])
+		for rq in range(0,len(U)):
+			if checkSubGraphIsomorphismWithLabels(F[f],U[rq]):
+				s.add(rq+1)
+		S.append(s)
+
+	A = Set([])
+	USet = Set(range(1,len(U)+1))
+	Usim = 0
+	Gamma = [0]*len(S)
+	while not A==USet:
+		minVal = 10000
+		minPos = -1
+		for i in range(0,len(S)):
+			Gamma[i] = float(UpperB[i])/len(S[i]-A)
+			if Gamma[i] < minVal:
+				minPos = i
+				minVal = Gamma[i]
+		A.update(S[minPos])
+		S.pop(minPos)
+		Gamma.pop(minPos)
+		w = UpperB.pop(minPos)
+		Usim = Usim + w
+	return Usim
+
 '''
 Execution of approach begins here
 '''
@@ -215,14 +315,14 @@ Execution of approach begins here
 # read probabilistic graphs from inputDirectory
 print 'Reading probabilistic graphs: ',
 probGraphs = []
-graphFiles = [ f for f in listdir(inputDirectory) if isfile(join(inputDirectory,f)) ]
+graphFiles = [ f for f in listdir(inputDirectory) if isfile(join(inputDirectory,f)) and not f.startswith('.') ]
 for graphFile in graphFiles:
-	newGraph = nx.Graph()
+	newGraph = nx.Graph(name=graphFile)
 	for line in open(join(inputDirectory,f)):
 		line = line.strip()
 		newGraph.add_edge(line.split()[0],line.split()[1],weight=float(line.split()[4]))
-		newGraph.node[line.split()[0]] = line.split()[2]
-		newGraph.node[line.split()[1]] = line.split()[3]
+		newGraph.node[line.split()[0]]['label'] = line.split()[2]
+		newGraph.node[line.split()[1]]['label'] = line.split()[3]
 	probGraphs.append(newGraph)
 print 'Done'
 
@@ -244,20 +344,53 @@ print 'Done'
 
 # generating Probabilistic Matrix Index(PMI)
 # lower bound computation
-print 'Generating lower bounds of PMI: ',
-lowerBoundsPMI = []
+print 'Generating lower bounds of PMI: '
+lowerBoundsPMI = {}
 for graph in probGraphs:
+	print '		Generating lower bounds of graph',graph.graph['name']
 	lowerBoundsGraph = []
 	for feature in features:
 		lowerBoundsGraph.append(findLowerBoundFeature(feature,graph))
-	lowerBoundsPMI.append(lowerBoundsGraph)
-print 'Done'
+	lowerBoundsPMI[graph.graph['name']] = lowerBoundsGraph
+
 # upper bound computation
-print 'Generating upper bounds of PMI: ',
-upperBoundsPMI = []
+print 'Generating upper bounds of PMI: '
+upperBoundsPMI = {}
 for graph in probGraphs:
+	print '		Generating upper bounds of graph',graph.graph['name']
 	upperBoundsGraph = []
 	for feature in features:
 		upperBoundsGraph.append(findUpperBoundFeature(feature,graph))
-	upperBoundsPMI.append(upperBoundsGraph)
+	upperBoundsPMI[graph.graph['name']] = upperBoundsGraph
+
+# read query graph
+print 'Reading query graph: ',
+queryGraph = nx.Graph(name='query')
+for line in open(queryFile):
+	line = line.strip()
+	queryGraph.add_edge(line.split()[0],line.split()[1])
+	queryGraph.node[line.split()[0]]['label'] = line.split()[2]
+	queryGraph.node[line.split()[1]]['label'] = line.split()[3]
 print 'Done'
+
+eps = float(epsilon)
+
+# check query graph against probabilistic graphs
+for graph in probGraphs:
+	print 'Checking for subgraph similarity against graph ',graph.graph['name'],' : ',
+	# Structural pruning
+	if checkSubGraphIsomorphismWithLabels(queryGraph,graph) == False:
+		print 'Pruned using structural pruning'
+	else:
+		# Probabilistic pruning
+		lowerBoundSSP = findTightestLSim([queryGraph],features,upperBoundsPMI[graph.graph['name']],lowerBoundsPMI[graph.graph['name']])
+		print 'lower bound = ',lowerBoundSSP,
+		if lowerBoundSSP >= eps:
+			print 'Present in final answer set'
+			continue
+		upperBoundSSP = findTightestUSim([queryGraph],features,upperBoundsPMI[graph.graph['name']])
+		print 'upper bound = ',upperBoundSSP,
+		if upperBoundSSP < eps:
+			print 'Pruned using probabilistic pruning'
+			continue
+		print 'Have to verify'
