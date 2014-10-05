@@ -5,6 +5,8 @@ from os.path import isfile, join
 from networkx.algorithms import isomorphism
 import networkx.algorithms.isomorphism as iso
 from sets import Set
+from cvxopt import matrix, solvers
+from numpy import array, zeros, ones, log
 
 script, inputDirectory, queryFile, epsilon = argv
 
@@ -379,7 +381,8 @@ eps = float(epsilon)
 for graph in probGraphs:
 	print 'Checking for subgraph similarity against graph ',graph.graph['name'],' : ',
 	# Structural pruning
-	if checkSubGraphIsomorphismWithLabels(queryGraph,graph) == False:
+#	if checkSubGraphIsomorphismWithLabels(queryGraph,graph) == False:
+	if 1==2:
 		print 'Pruned using structural pruning'
 	else:
 		# Probabilistic pruning
