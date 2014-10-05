@@ -170,7 +170,9 @@ def generateAllEmbeddings(G1,G2):
 		lineGraphG2=generateLabeledLineGraph(G2)
 		#print lineGraphG1.nodes()
 		setOfLineGraphs = [lineGraphG2]
-		while len(setOfLineGraphs) > 0:
+		noOfTimes = 0
+		while len(setOfLineGraphs) > 0 and noOfTimes<= 100:
+			noOfTimes = noOfTimes + 1
 			lineGraphG2 = setOfLineGraphs[0]
 			setOfLineGraphs = setOfLineGraphs[1:]
 			iterations = 0
@@ -218,6 +220,7 @@ def findTightestLSim(U,F,UpB,LoB):
 		s = Set([])
 		for rq in range(0,len(U)):
 			if checkSubGraphIsomorphismWithLabels(U[rq],F[f]):
+				print 'index of feature which is super-graph of query: ',f
 				s.add(rq+1)
 		S.append(s)
 
@@ -302,12 +305,11 @@ def findTightestUSim(U,F,UpB):
 			if len(S[i]-A) == 0:
 				Gamma[i] = 100000
 			else:
+				print 'upper bound of feature: ', UpperB[i], ' feature index: ', i
 				Gamma[i] = float(UpperB[i])/len(S[i]-A)
 			if Gamma[i] < minVal:
 				minPos = i
 				minVal = Gamma[i]
-		if minPos == -1:
-			break
 		A.update(S[minPos])
 		S.pop(minPos)
 		Gamma.pop(minPos)
@@ -325,7 +327,7 @@ probGraphs = []
 graphFiles = [ f for f in listdir(inputDirectory) if isfile(join(inputDirectory,f)) and not f.startswith('.') ]
 for graphFile in graphFiles:
 	newGraph = nx.Graph(name=graphFile)
-	for line in open(join(inputDirectory,f)):
+	for line in open(join(inputDirectory,graphFile)):
 		line = line.strip()
 		newGraph.add_edge(line.split()[0],line.split()[1],weight=float(line.split()[4]))
 		newGraph.node[line.split()[0]]['label'] = line.split()[2]
@@ -333,22 +335,23 @@ for graphFile in graphFiles:
 	probGraphs.append(newGraph)
 print 'Done'
 
-'''
 # feature generation
 print 'Generating features: ',
 features = []
 labelList=[]
 
+'''
 COGMappingsFile=open("COGMappings.txt")
 COGMapping = {}
 for line in COGMappingsFile:
 	COGMapping[line.split()[0]] = line.split()[1]
+'''
 
-COGFrequencyFile=open("COGFrequencies.txt")
+COGFrequencyFile=open("FrequencyCounts.txt")
 maxLim=6 # ------------------------------------------------------------------------------> parameter
 for index,line in enumerate(COGFrequencyFile):
 	words=line.split()
-	labelList.append(COGMapping[words[0]])
+	labelList.append(words[0])
 labelList=labelList[:maxLim]
 
 features = features+generateLabelledVariants(getK3(),labelList) # K3
@@ -372,11 +375,11 @@ upperBoundsPMI = {}
 for graph in probGraphs:
 	print '		Generating upper bounds of graph',graph.graph['name']
 	upperBoundsGraph = []
+	index = 0
 	for feature in features:
 		upperBoundsGraph.append(findUpperBoundFeature(feature,graph))
+		index = index + 1
 	upperBoundsPMI[graph.graph['name']] = upperBoundsGraph
-
-'''
 
 # read query graph
 print 'Reading query graph: ',
@@ -394,22 +397,18 @@ eps = float(epsilon)
 for graph in probGraphs:
 	print 'Checking for subgraph similarity against graph ',graph.graph['name'],' : '
 	# Structural pruning
-	if checkSubGraphIsomorphismWithLabels(queryGraph.copy(),graph.copy()) == False:
+	if checkSubGraphIsomorphismWithLabels(queryGraph,graph) == False:
 		print 'Pruned using structural pruning'
-	else:
-		print 'Not structurally pruned'
-'''
 	else:
 		# Probabilistic pruning
 		upperBoundSSP = findTightestUSim([queryGraph],features,upperBoundsPMI[graph.graph['name']])
-		print 'upper bound = ',upperBoundSSP,
+		print 'upper bound = ',upperBoundSSP
 		if upperBoundSSP < eps:
 			print 'Pruned using probabilistic pruning'
 			continue
 		lowerBoundSSP = findTightestLSim([queryGraph],features,upperBoundsPMI[graph.graph['name']],lowerBoundsPMI[graph.graph['name']])
-		print 'lower bound = ',lowerBoundSSP,
+		print 'lower bound = ',lowerBoundSSP
 		if lowerBoundSSP >= eps:
 			print 'Present in final answer set'
 			continue
 		print 'Have to verify'
-'''
